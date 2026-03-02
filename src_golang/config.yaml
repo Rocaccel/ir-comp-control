@@ -1,0 +1,76 @@
+port: "COM4"
+baud: 115200
+
+# Привязка кнопок пульта
+buttons:
+  KEY_36: SYSTEM_SHUTDOWN
+  KEY_B: VK_SPACE
+  KEY_12: VK_VOLUME_UP
+  KEY_13: VK_VOLUME_DOWN
+  KEY_30: VK_VOLUME_MUTE
+  KEY_28: VK_VOLUME_UP
+  KEY_2A: VK_VOLUME_DOWN
+  KEY_2D: VK_VOLUME_MUTE
+  KEY_17: VK_F
+  KEY_F: VK_ESC
+  KEY_14: VK_LEFT
+  KEY_15: VK_RIGHT
+  KEY_16: VK_LEFT
+  KEY_10: VK_RIGHT
+  KEY_3C: VK_UP
+  KEY_11: VK_DOWN
+  KEY_2E: ALT_TAB
+  KEY_C: ALT_F4
+  KEY_D: WIN_D
+  KEY_3D: MOUSE_UP 
+  KEY_3E: MOUSE_DOWN 
+  KEY_3F: MOUSE_LEFT 
+  KEY_2B: MOUSE_RIGHT 
+  KEY_2C: MOUSE_CLICK 
+
+
+# Полный справочник доступных команд для использования в блоке buttons
+keys_library:
+  # Пример: кнопка включения на пульте
+  - SYSTEM_SHUTDOWN
+  # Основные
+  - VK_SPACE
+  - VK_ENTER
+  - VK_ESC
+  - VK_BACKSPACE
+  - VK_TAB
+  - VK_CAPSLOCK
+  - VK_NUMLOCK
+  - VK_SCROLLLOCK
+  # Стрелки и навигация
+  - VK_LEFT
+  - VK_RIGHT
+  - VK_UP
+  - VK_DOWN
+  - VK_PAGEUP
+  - VK_PAGEDOWN
+  - VK_HOME
+  - VK_END
+  - VK_INSERT
+  - VK_DELETE
+  # Мультимедиа
+  - VK_VOLUME_UP
+  - VK_VOLUME_DOWN
+  - VK_VOLUME_MUTE
+  - VK_PLAY_PAUSE
+  - VK_NEXT
+  - VK_PREV
+  - VK_STOP
+  # Буквы
+  - VK_A, VK_B, VK_C, VK_D, VK_E, VK_F, VK_G, VK_H, VK_I, VK_J, VK_K, VK_L, VK_M
+  - VK_N, VK_O, VK_P, VK_Q, VK_R, VK_S, VK_T, VK_U, VK_V, VK_W, VK_X, VK_Y, VK_Z
+  # Цифры
+  - VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9
+  # Функциональные
+  - VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_F10, VK_F11, VK_F12
+  # Системные
+  - VK_PRINT
+  - VK_PAUSE
+  - ALT_TAB
+  - WIN_D
+  - ALT_F4
