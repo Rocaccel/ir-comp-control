@@ -26,7 +26,7 @@ buttons:
   KEY_3E: MOUSE_DOWN 
   KEY_3F: MOUSE_LEFT 
   KEY_2B: MOUSE_RIGHT 
-  KEY_2C: MOUSE_CLICK 
+  KEY_2C: L_CLICK 
 
 
 # Полный справочник доступных команд для использования в блоке buttons

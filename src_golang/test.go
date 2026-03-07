@@ -264,11 +264,6 @@ func handleAction(action string, kb keybd_event.KeyBonding) {
 		kb.SetKeys(keybd_event.VK_TAB)
 		kb.Launching()
 		kb.HasALT(false)
-	case "ALT_F4":
-		kb.HasALT(true)               // Зажать Alt
-		kb.SetKeys(keybd_event.VK_F4) // Выбрать F4
-		kb.Launching()
-		kb.HasALT(false) // ОТПУСТИТЬ Alt (Обязательно!)
 	default:
 		if vkCode, found := vkMap[action]; found {
 			kb.SetKeys(vkCode)
