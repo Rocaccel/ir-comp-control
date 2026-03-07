@@ -6,9 +6,9 @@ const int RECV_PIN = 2;
 
 void setup() {
     Serial.begin(115200); // Скорость должна совпадать с baud в твоем config.yaml
-    
+    Serial.setTimeout(5);
     // Запуск приемника
-    IrReceiver.begin(RECV_PIN, ENABLE_LED_FEEDBACK); 
+    IrReceiver.begin(RECV_PIN); 
     
     Serial.println("Arduino IR to Serial Bridge Ready (RC5)");
 }
