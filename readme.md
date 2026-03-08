@@ -1,3 +1,77 @@
-# Управление компьютером при помощи инфракрасного пульта
-Запускается и выводит иконку в трей.
+# **IR comp control**
+
+**IR comp control** — это легковесная утилита для ОС Windows, написанная на языке Go, которая позволяет управлять компьютером с помощью обычного ИК-пульта через последовательный порт (COM-порт).
+
+## **О программе**
+
+Программа превращает ваш ИК-пульт в полноценный контроллер для мультимедиа и навигации. Она поддерживает эмуляцию нажатий клавиш, системные команды (выключение) и "умное" управление курсором мыши с логарифмическим ускорением. Утилита работает в системном трее, не занимает места на экране и имеет встроенную систему защиты от случайного выключения ПК.
+
+## **Возможности**
+
+* **Эмуляция клавиатуры**: Поддержка большинства мультимедийных и стандартных клавиш (Volume, Play/Pause, Win+D и др.).  
+* **Умная мышь**: Плавное перемещение курсора кнопками ИК-пульта.  
+* **Безопасное выключение**: Таймер на 10 секунд с возможностью отмены любой кнопкой пульта или закрытием окна.  
+* **Работа в трее**: Удобное меню для перезагрузки конфига, открытия настроек и режима отладки.  
+* **Zero-GUI**: Отсутствие лишних окон консоли при работе.
+
+## **Настройка (config.toml)**
+
+Конфигурационный файл создается автоматически при первом запуске. Используется формат TOML.
+
+### **Основные параметры:**
+
+| Параметр | Описание | Пример |
+| :---- | :---- | :---- |
+| port | Имя COM-порта, к которому подключен ИК-приемник | "COM4" |
+| baud | Скорость передачи данных (обычно 115200\) | 115200 |
+
+### **Секция \[buttons\]:**
+
+В этой секции сопоставляются коды, приходящие от пульта, и действия в системе.
+
+\[buttons\]  
+"KEY\_36" \= "SYSTEM\_SHUTDOWN" \# Команда выключения  
+"KEY\_B"  \= "VK\_SPACE"       \# Эмуляция пробела  
+"KEY\_3D" \= "MOUSE\_UP"       \# Движение мыши вверх
+
+### **Доступные команды:**
+
+1. **Системные**: SYSTEM\_SHUTDOWN, WIN\_D, ALT\_TAB, ALT\_F4.  
+2. **Мышь**: MOUSE\_UP, MOUSE\_DOWN, MOUSE\_LEFT, MOUSE\_RIGHT, L\_CLICK.  
+3. **Медиа**: VK\_VOLUME\_UP, VK\_VOLUME\_DOWN, VK\_VOLUME\_MUTE, VK\_PLAY\_PAUSE, VK\_NEXT, VK\_PREV.  
+4. **Клавиши**: VK\_SPACE, VK\_ENTER, VK\_ESC, VK\_BACKSPACE, VK\_TAB, VK\_LEFT, VK\_RIGHT, VK\_UP, VK\_DOWN.
+
+### **Ускорение мыши**
+
+Программа использует адаптивный алгоритм перемещения:
+
+* **Короткое нажатие**: Мышь движется с фиксированной скоростью (5 пикселей за шаг).  
+* **Удержание \> 0.3 сек**: Чем дольше вы держите кнопку, тем быстрее летит курсор.
+
+### **Алгоритм выключения**
+
+1. При получении команды SYSTEM\_SHUTDOWN проигрывается резкий системный звук.  
+2. Появляется окно с 10-секундным обратным отсчетом.  
+3. **Для отмены**:  
+   * Нажмите **любую** кнопку на ИК-пульте.  
+   * Или нажмите **ОК / Закрыть** в окне на экране.  
+4. При отмене прозвучит мягкий сигнал уведомления, и таймер будет остановлен.
+
+## **Режим отладки (Debug Mode)**
+
+Если кнопки пульта не реагируют, включите "Режим отладки" через меню в трее. При нажатии кнопок на пульте программа будет выводить окна с кодами (например, Получен: KEY\_A1). Скопируйте этот код и добавьте его в config.toml.
+
+## **Лицензия**
+
+**MIT License**
+
+Copyright (c) 2024
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 Для микроконтроллера используется библиотека из https://github.com/GyverLibs/NecDecoder
