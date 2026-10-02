@@ -1,0 +1,5 @@
+# Binaries
+*.exe
+
+# Local runtime config (root) — not pushed per owner request
+/config.toml

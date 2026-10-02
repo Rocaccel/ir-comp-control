@@ -1,12 +1,13 @@
-module ir_controler_v3
+module ir-control-v0.0.5
 
-go 1.25.0
+go 1.26.0
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/getlantern/systray v1.2.2
 	github.com/micmonay/keybd_event v1.1.2
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
-	gopkg.in/yaml.v3 v3.0.1
+	golang.org/x/sys v0.48.0
 )
 
 require (
@@ -18,5 +19,4 @@ require (
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	golang.org/x/sys v0.1.0 // indirect
 )
