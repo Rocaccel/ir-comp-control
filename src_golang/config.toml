@@ -5,31 +5,39 @@ baud = 115200
 # забинденые кнопки и функции
 # добавляем код кнопки (смотреть через пункт меню "Режим отладки" ) и название функции
 # для простых кнопок клавиатуры не нужно перекомпилировать main.go
+# префикс NEC_ или RC5_ определяется автоматически — оба пульта работают одновременно
 [buttons]
-"KEY_36" = "SYSTEM_SHUTDOWN"
-"KEY_B"  = "VK_SPACE"
-"KEY_12" = "VK_VOLUME_UP"
-"KEY_13" = "VK_VOLUME_DOWN"
-"KEY_30" = "VK_VOLUME_MUTE"
-"KEY_28" = "VK_VOLUME_UP"
-"KEY_2A" = "VK_VOLUME_DOWN"
-"KEY_2D" = "VK_VOLUME_MUTE"
-"KEY_17" = "VK_F"
-"KEY_F"  = "VK_ESC"
-"KEY_14" = "VK_LEFT"
-"KEY_15" = "VK_RIGHT"
-"KEY_16" = "VK_LEFT"
-"KEY_10" = "VK_RIGHT"
-"KEY_3C" = "VK_UP"
-"KEY_11" = "VK_DOWN"
-"KEY_2E" = "ALT_TAB"
-"KEY_C"  = "ALT_F4"
-"KEY_D"  = "WIN_D"
-"KEY_3D" = "MOUSE_UP"
-"KEY_3E" = "MOUSE_DOWN"
-"KEY_3F" = "MOUSE_LEFT"
-"KEY_2B" = "MOUSE_RIGHT"
-"KEY_2C" = "L_CLICK"
+
+# ============ Пульт RC5 ============
+"RC5_36" = "SYSTEM_SHUTDOWN"
+"RC5_B"  = "VK_SPACE"
+"RC5_12" = "VK_VOLUME_UP"
+"RC5_13" = "VK_VOLUME_DOWN"
+"RC5_30" = "VK_VOLUME_MUTE"
+"RC5_28" = "VK_VOLUME_UP"
+"RC5_2A" = "VK_VOLUME_DOWN"
+"RC5_2D" = "VK_VOLUME_MUTE"
+"RC5_17" = "VK_F"
+"RC5_F"  = "VK_ESC"
+"RC5_14" = "VK_LEFT"
+"RC5_15" = "VK_RIGHT"
+"RC5_16" = "VK_LEFT"
+"RC5_10" = "VK_RIGHT"
+"RC5_3C" = "VK_UP"
+"RC5_11" = "VK_DOWN"
+"RC5_2E" = "ALT_TAB"
+"RC5_C"  = "ALT_F4"
+"RC5_D"  = "WIN_D"
+"RC5_3D" = "MOUSE_UP"
+"RC5_3E" = "MOUSE_DOWN"
+"RC5_3F" = "MOUSE_LEFT"
+"RC5_2B" = "MOUSE_RIGHT"
+"RC5_2C" = "L_CLICK"
+
+# ============ Пульт NEC ============
+# коды заполняются через режим отладки:
+# понажимать кнопки на NEC-пульте и вписать увиденные NEC_xx
+"NEC_2" = "VK_VOLUME_UP"
 
 # Полный справочник доступных команд для использования в блоке buttons
 #   # Кнопка включения на пульте
