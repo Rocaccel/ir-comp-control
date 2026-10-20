@@ -15,7 +15,7 @@
 5. [Requirements](#requirements)
 6. [Quick Start](#quick-start)
 7. [Configuration (config.toml)](#configuration-configtoml)
-8. [Important Notes on Config & Migration](#important-notes-on-config--migration)
+8. [Important Notes on Config](#important-notes-on-config)
 9. [How Features Work](#how-features-work)
 10. [Debug Mode](#debug-mode)
 11. [Building from Source](#building-from-source)
@@ -186,16 +186,11 @@ Maps remote button codes to system actions. Codes are prefixed with the protocol
 
 ---
 
-## Important Notes on Config & Migration
+## Important Notes on Config
 
 The configuration file is **embedded in the exe** via `go:embed` and extracted on first launch — **only if there is no `config.toml` next to the application**.
 
 > ⚠️ An existing `config.toml` is **never overwritten**. If you updated the exe but an old config file is present, the app will keep using the old file.
-
-**Migration from older versions:** after flashing the dual sketch, button codes changed from `KEY_xx` to `NEC_xx` / `RC5_xx`. If you have an old config:
-
-- **Option 1:** delete `config.toml` — a new one will be created from the embedded template on next launch.
-- **Option 2:** manually replace the `KEY_` prefix with `NEC_` (or `RC5_`) in all `[buttons]` entries.
 
 ---
 
