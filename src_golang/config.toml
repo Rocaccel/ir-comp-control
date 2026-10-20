@@ -49,8 +49,6 @@ baud = 115200
 #   - VK_BACKSPACE
 #   - VK_TAB
 #   - VK_CAPSLOCK
-#   - VK_NUMLOCK
-#   - VK_SCROLLLOCK
 #   # Стрелки и навигация
 #   - VK_LEFT
 #   - VK_RIGHT
