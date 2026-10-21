@@ -29,19 +29,30 @@ var iconBytes []byte
 //go:embed config.toml
 var defaultToml []byte
 
+// version подставляется при сборке через ldflags:
+// -ldflags "-X main.version=v0.2.0"; без флага остаётся "dev".
+var version = "dev"
+
 // --- Windows API ---
 // Большая часть WinAPI вызывается через типизированные обёртки
 // golang.org/x/sys/windows. Через raw-вызовы осталось только то,
 // чего в пакете windows нет: курсор, mouse_event и MessageBeep.
 var (
-	user32           = windows.NewLazySystemDLL("user32.dll")
-	procSetCursorPos = user32.NewProc("SetCursorPos")
-	procGetCursorPos = user32.NewProc("GetCursorPos")
-	procMouseEvent   = user32.NewProc("mouse_event")
-	procMessageBeep  = user32.NewProc("MessageBeep")
+	user32            = windows.NewLazySystemDLL("user32.dll")
+	procSetCursorPos  = user32.NewProc("SetCursorPos")
+	procGetCursorPos  = user32.NewProc("GetCursorPos")
+	procMouseEvent    = user32.NewProc("mouse_event")
+	procMessageBeep   = user32.NewProc("MessageBeep")
+	procFindWindow    = user32.NewProc("FindWindowW")
+	procPostMessage   = user32.NewProc("PostMessageW")
+	procFindWindowEx  = user32.NewProc("FindWindowExW")
+	procSetWindowText = user32.NewProc("SetWindowTextW")
 )
 
 const (
+	// WM_CLOSE — закрыть окно (для PostMessage).
+	wmClose = 0x0010
+
 	mouseLeftDown = 0x0002
 	mouseLeftUp   = 0x0004
 
@@ -50,9 +61,21 @@ const (
 
 	shutdownPrivilege = "SeShutdownPrivilege"
 	shutdownTimeout   = 10 * time.Second
+	// Заголовок окна отсчёта; он же — ключ поиска окна при отмене.
+	// Уникальный: FindWindow по generic-заголовку вроде «Внимание»
+	// мог бы зацепить чужое окно другой программы.
+	shutdownBoxTitle = "IR comp control: выключение"
+	// Заголовок окна отладки — тоже уникальный (ключ для FindWindow).
+	debugBoxTitle = "IR comp control: отладка"
 
 	debounceDuration = 150 * time.Millisecond
-	baseMouseStep    = 10.0 // Базовый шаг мыши (начальная скорость)
+
+	// Ускорение мыши: с каждым повторным сигналом в серии шаг растёт
+	// логарифмически; подробности — в moveMouseAccel и mouseState.advance.
+	baseMouseStep    = 10.0                   // базовый шаг, px — без ускорения
+	accelBaseTicks   = 3                      // первых N сигналов подряд идут без ускорения (включается с 4-го)
+	accelGain        = 60.0                   // множитель логарифмического ускорения, px
+	accelSeriesPause = 160 * time.Millisecond // пауза длиннее — серия сигналов считается прерванной
 )
 
 type cursorPoint struct{ X, Y int32 }
@@ -62,16 +85,23 @@ type cursorPoint struct{ X, Y int32 }
 var singleInstanceMutex windows.Handle
 
 // --- Общее состояние (доступ из нескольких горутин) ---
+// stateMu — составное состояние выключения (флаг + таймер,
+// операции «проверить и остановить»).
+// debugMode — простой флаг с частым чтением в цикле приёма,
+// поэтому atomic без лока.
 var (
-	stateMu         sync.Mutex
-	shutdownActive  bool
-	shutdownTimer   *time.Timer
-	clickCount      int
-	lastMouseAction string
-	lastSignalTime  time.Time
+	stateMu        sync.Mutex
+	shutdownActive bool
+	shutdownTimer  *time.Timer
+
+	mouseAccel mouseState
 
 	debugMode  atomic.Bool
 	reloadChan = make(chan bool, 1)
+	// currentConfig — актуальный конфиг, подменяется на лету.
+	currentConfig atomic.Pointer[appConfig]
+	// kick будит сеанс после его падения (кликом «Перезагрузить конфиг»).
+	kick = make(chan struct{}, 1)
 )
 
 // Соответствие имён кнопок из config.toml кодам клавиш.
@@ -152,6 +182,8 @@ func onReady() {
 	systray.SetTooltip("Управление пультом активно")
 
 	systray.AddMenuItem("Статус: Работает", "").Disable()
+	systray.AddMenuItem("Версия: "+version, "").Disable()
+	systray.AddSeparator()
 
 	mReload := systray.AddMenuItem("Перезагрузить конфиг", "Применить изменения")
 	mOpenConfig := systray.AddMenuItem("Открыть конфиг", "Редактировать кнопки")
@@ -176,9 +208,11 @@ func onReady() {
 				if mDebug.Checked() {
 					mDebug.Uncheck()
 					debugMode.Store(false)
+					closeDebugBox()
 				} else {
 					mDebug.Check()
 					debugMode.Store(true)
+					openDebugBox(mDebug)
 				}
 			case <-mOpenConfig.ClickedCh:
 				_ = exec.Command("notepad.exe", "config.toml").Start()
@@ -188,55 +222,86 @@ func onReady() {
 		}
 	}()
 
-	go worker()
+	// Начальная загрузка конфига; при ошибке configWatcher
+	// подхватит после правки файла.
+	if cfg, err := loadConfig(); err != nil {
+		showDebugBox("Ошибка конфига", err.Error())
+	} else {
+		currentConfig.Store(cfg)
+	}
+	go configWatcher()
+	go remoteLoop()
 }
 
-func worker() {
-	for {
-		stop := make(chan struct{})
-		done := make(chan struct{})
-		go runRemoteControl(stop, done)
-
-		<-reloadChan
-		close(stop)
-		<-done // ждём завершения сессии вместо Sleep
-	}
+// appConfig — содержимое config.toml.
+type appConfig struct {
+	Port    string            `toml:"port"`
+	Baud    int               `toml:"baud"`
+	Buttons map[string]string `toml:"buttons"`
 }
 
-func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
-	defer close(done)
-
-	var config struct {
-		Port    string            `toml:"port"`
-		Baud    int               `toml:"baud"`
-		Buttons map[string]string `toml:"buttons"`
-	}
-
+// loadConfig читает config.toml рядом с exe.
+func loadConfig() (*appConfig, error) {
+	var config appConfig
 	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			showDebugBox("Ошибка", "Файл config.toml не найден")
-		} else {
-			showDebugBox("Ошибка синтаксиса TOML", err.Error())
+			return nil, errors.New("Файл config.toml не найден")
 		}
-		return
+		return nil, fmt.Errorf("Ошибка синтаксиса TOML: %w", err)
 	}
-	sPort, err := serial.OpenPort(&serial.Config{Name: config.Port, Baud: config.Baud})
-	if err != nil {
-		showDebugBox("Ошибка порта", "Не удалось открыть "+config.Port)
-		return
-	}
-	// Порт закрывается ровно один раз: либо по остановке,
-	// либо при выходе из функции.
-	var closeOnce sync.Once
-	closePort := func() {
-		closeOnce.Do(func() { _ = sPort.Close() })
-	}
-	defer closePort()
+	return &config, nil
+}
 
-	go func() {
-		<-stop
-		closePort()
-	}()
+// configWatcher перечитывает конфиг по клику «Перезагрузить конфиг».
+// Кнопки применяются на лету; порт/скорость живут до перезапуска
+// приложения — сеанс открывает порт ровно один раз.
+func configWatcher() {
+	for range reloadChan {
+		cfg, err := loadConfig()
+		if err != nil {
+			showDebugBox("Ошибка конфига", err.Error())
+		} else {
+			if prev := currentConfig.Load(); prev != nil &&
+				(prev.Port != cfg.Port || prev.Baud != cfg.Baud) {
+				showDebugBox("Смена порта",
+					"Для применения нового COM-порта перезапустите приложение")
+			}
+			currentConfig.Store(cfg)
+		}
+		// Будим сеанс, если он упал и ждёт повтора;
+		// живому сеансу этот сигнал не мешает.
+		select {
+		case kick <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// remoteLoop: сеанс живёт, пока порт читается; после падения ждёт
+// клика «Перезагрузить конфиг» и переподключается.
+func remoteLoop() {
+	for {
+		runSession()
+		<-kick
+	}
+}
+
+// runSession — один сеанс работы: открыть порт, читать коды.
+func runSession() {
+	cfg := currentConfig.Load()
+	for cfg == nil {
+		// Конфиг ещё ни разу не загрузился (файл был сломан при
+		// старте) — ждём, пока configWatcher подхватит правку.
+		time.Sleep(200 * time.Millisecond)
+		cfg = currentConfig.Load()
+	}
+
+	sPort, err := serial.OpenPort(&serial.Config{Name: cfg.Port, Baud: cfg.Baud})
+	if err != nil {
+		showDebugBox("Ошибка порта", "Не удалось открыть "+cfg.Port)
+		return
+	}
+	defer sPort.Close()
 
 	kb, err := keybd_event.NewKeyBonding()
 	if err != nil {
@@ -253,10 +318,13 @@ func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
 			continue
 		}
 		if debugMode.Load() {
-			showDebugBox("ИК Код", "Получен: "+msg)
+			updateDebugBox("Последний код: " + msg)
 		}
 
-		action, ok := config.Buttons[msg]
+		// Берём актуальный конфиг на каждый код: кнопки
+		// перезагружаются на лету, порт при этом не перезапускается.
+		cur := currentConfig.Load()
+		action, ok := cur.Buttons[msg]
 		if !ok {
 			continue
 		}
@@ -272,12 +340,7 @@ func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		select {
-		case <-stop:
-			// Штатная остановка по перезагрузке конфига — не шуметь.
-		default:
-			showDebugBox("Ошибка чтения порта", err.Error())
-		}
+		showDebugBox("Ошибка чтения порта", err.Error())
 	}
 }
 
@@ -351,7 +414,7 @@ func startShutdown() {
 		if err != nil {
 			return
 		}
-		c, err := windows.UTF16PtrFromString("Внимание")
+		c, err := windows.UTF16PtrFromString(shutdownBoxTitle)
 		if err != nil {
 			return
 		}
@@ -364,6 +427,79 @@ func startShutdown() {
 			cancelShutdown()
 		}
 	}()
+}
+
+// closeWindowByTitle закрывает окно с указанным заголовком, если оно
+// открыто: WM_CLOSE завершает MessageBox, и его горутина спокойно выходит.
+func closeWindowByTitle(title string) {
+	t, err := windows.UTF16PtrFromString(title)
+	if err != nil {
+		return
+	}
+	hwnd, _, _ := procFindWindow.Call(0, uintptr(unsafe.Pointer(t)))
+	if hwnd == 0 {
+		return // окно ещё не появилось или уже закрыто
+	}
+	_, _, _ = procPostMessage.Call(hwnd, wmClose, 0, 0)
+}
+
+// --- Окно отладки: одно окно, текст обновляется на лету ---
+
+// openDebugBox открывает окно отладки. Закрытие окна пользователем
+// выключает режим отладки; выключение из трея закрывает окно через
+// closeDebugBox — в обоих направлениях петли нет.
+func openDebugBox(menu *systray.MenuItem) {
+	t, err := windows.UTF16PtrFromString("Режим отладки: жду код с пульта. Нажмите любую кнопку.")
+	if err != nil {
+		return
+	}
+	c, err := windows.UTF16PtrFromString(debugBoxTitle)
+	if err != nil {
+		return
+	}
+	go func() {
+		// Без иконки: у текста остаётся единственный дочерний STATIC,
+		// его и обновляет updateDebugBox.
+		_, _ = windows.MessageBox(0, t, c, windows.MB_OK|windows.MB_TOPMOST)
+		// Окно закрыли пользователем — гасим режим и чекбокс.
+		// Если режим уже выключен из трея, это no-op.
+		if debugMode.Load() {
+			debugMode.Store(false)
+			menu.Uncheck()
+		}
+	}()
+}
+
+// closeDebugBox закрывает окно отладки, если оно открыто.
+func closeDebugBox() {
+	closeWindowByTitle(debugBoxTitle)
+}
+
+// updateDebugBox показывает последний код в уже открытом окне.
+// Если окна нет (его только что закрыли) — выходим молча:
+// закрытие окна само выключает режим (см. openDebugBox).
+func updateDebugBox(msg string) {
+	title, err := windows.UTF16PtrFromString(debugBoxTitle)
+	if err != nil {
+		return
+	}
+	hwnd, _, _ := procFindWindow.Call(0, uintptr(unsafe.Pointer(title)))
+	if hwnd == 0 {
+		return
+	}
+	text, err := windows.UTF16PtrFromString(msg)
+	if err != nil {
+		return
+	}
+	cls, err := windows.UTF16PtrFromString("STATIC")
+	if err != nil {
+		return
+	}
+	static, _, _ := procFindWindowEx.Call(hwnd, 0, uintptr(unsafe.Pointer(cls)), 0)
+	if static == 0 {
+		return
+	}
+	_, _, _ = procSetWindowText.Call(static, uintptr(unsafe.Pointer(text)))
 }
 
 func cancelShutdown() {
@@ -379,6 +515,8 @@ func cancelShutdown() {
 	shutdownActive = false
 	stateMu.Unlock()
 
+	// Закрываем окно отсчёта, если оно уже успело появиться.
+	closeWindowByTitle(shutdownBoxTitle)
 	playSystemSound(beepSimple)
 }
 
@@ -396,26 +534,41 @@ func showDebugBox(title, text string) {
 	}()
 }
 
-func moveMouseAccel(dir string, dx, dy int32) {
-	now := time.Now()
+// mouseState накапливает серию сигналов пульта в одном направлении
+// и отдаёт счётчик для расчёта ускорения.
+type mouseState struct {
+	mu       sync.Mutex
+	count    int
+	lastDir  string
+	lastTime time.Time
+}
 
-	stateMu.Lock()
-	// 1. Сброс при долгой паузе (160мс) или смене направления
-	if now.Sub(lastSignalTime) > 160*time.Millisecond || dir != lastMouseAction {
-		clickCount = 1
-		lastMouseAction = dir
+// advance — единая точка обновления состояния мыши: один lock на всё.
+func (m *mouseState) advance(dir string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now()
+	// Сброс серии при паузе дольше accelSeriesPause или смене направления
+	if now.Sub(m.lastTime) > accelSeriesPause || dir != m.lastDir {
+		m.count = 1
+		m.lastDir = dir
 	} else {
-		clickCount++
+		m.count++
 	}
-	n := clickCount
-	stateMu.Unlock()
+	m.lastTime = now
+	return m.count
+}
+
+func moveMouseAccel(dir string, dx, dy int32) {
+	// n — количество сигналов подряд в одном направлении
+	// (время последнего сигнала фиксируется здесь же, внутри advance)
+	n := mouseAccel.advance(dir)
 
 	var acceleration float64
-	// 3. Условие: больше трех нажатий (т.е. начиная с 4-го)
-	if n > 3 {
-		// Рассчитываем ускорение на основе количества накопленных сигналов
-		// Чем чаще приходят сигналы, тем выше скорость
-		acceleration = 60.0 * math.Log1p(float64(n-3))
+	// Больше accelBaseTicks нажатий подряд (т.е. начиная с 4-го) —
+	// ускорение: чем чаще приходят сигналы, тем выше скорость
+	if n > accelBaseTicks {
+		acceleration = accelGain * math.Log1p(float64(n-accelBaseTicks))
 	}
 
 	// Итоговый шаг
@@ -430,11 +583,6 @@ func moveMouseAccel(dir string, dx, dy int32) {
 		pt.X+dx*step,
 		pt.Y+dy*step,
 	)
-
-	// Обновляем время последнего сигнала в самом конце
-	stateMu.Lock()
-	lastSignalTime = now
-	stateMu.Unlock()
 }
 
 func checkSingleInstance() {

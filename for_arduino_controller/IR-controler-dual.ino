@@ -11,24 +11,21 @@ void setup() {
 
 void loop() {
     if (IrReceiver.decode()) {
-        if (IrReceiver.decodedIRData.protocol != UNKNOWN) {
-            uint16_t command = IrReceiver.decodedIRData.command;
-            const char* prefix = "KEY_";
-
-            switch (IrReceiver.decodedIRData.protocol) {
-                case NEC:
-                case NEC2:
-                    prefix = "NEC_";
-                    break;
-                case RC5:
-                    prefix = "RC5_";
-                    break;
-                default:
-                    break;
-            }
-
+        const char* prefix = nullptr;
+        switch (IrReceiver.decodedIRData.protocol) {
+            case NEC:
+            case NEC2:
+                prefix = "NEC_";
+                break;
+            case RC5:
+                prefix = "RC5_";
+                break;
+            default:
+                break; // прочие протоколы не поддерживаем — не печатаем
+        }
+        if (prefix != nullptr) {
             Serial.print(prefix);
-            Serial.println(command, HEX);
+            Serial.println(IrReceiver.decodedIRData.command, HEX);
         }
         IrReceiver.resume();
     }

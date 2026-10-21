@@ -22,10 +22,12 @@
 
 ### Рабочие папки (на этой машине)
 
-- `C:\Users\ser\Desktop\GitHub\IR_comp_control` — основная копия, ветка `main`
-- `C:\Users\ser\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
+- `%USERPROFILE%\Desktop\GitHub\IR_comp_control` — основная копия, ветка `main`
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
   worktree ветки `v0.1.0` (скетчи, сборка exe)
-- `C:\Users\ser\Desktop\GOLANG_Portable\workspace\IR-control-v0.0.5` —
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.2.0` —
+  worktree ветки `v0.2.0` (рефакторинг main.go)
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.0.5` —
   архив старой версии, не трогать
 
 ## Репозиторий
@@ -53,17 +55,25 @@
   автоопределение NEC/RC5. Библиотека IRremote 4.x
   (в 4.5.0 нет констант `NEC_EXTRA`/`RC5X`).
 - ИК-приёмник — на пин D2.
-- **Имя папки при сборке = имя .ino** — IDE копирует скетч
-  в `%TEMP%\<имя-файла>\`.
-- Загрузка: `arduino.exe --upload --board arduino:avr:uno <файл.ino>`
-  (IDE 1.8.19, порт COM4).
-- Перед запуском exe — закрыть Монитор порта Arduino IDE.
+- Инструмент: arduino-cli (портативный),
+  `D:\Windows_Docs\Arduino\cli\arduino-cli.exe`;
+  ядро arduino:avr 1.8.8, sketchbook = `D:\Windows_Docs\Arduino`
+  (в `libraries\` лежит IRremote 4.5.0).
+- **Имя папки со скетчем = имя .ino** — скетч компилируется из
+  `%TEMP%\<имя-файла>\`.
+- Компиляция: `arduino-cli compile --fqbn arduino:avr:uno <папка-скетча>`
+- Загрузка: `arduino-cli upload --fqbn arduino:avr:uno --port COM4 <папка-скетча>`
+- Перед загрузкой и перед запуском exe — COM4 не должен быть занят
+  другим процессом (монитор порта и т.п.).
 
 ## Сборка exe (Windows)
 
 ```sh
-go build -trimpath -ldflags "-s -w -H=windowsgui" -o ir-comp-control_v<версия>-win64.exe .
+go build -trimpath -ldflags "-s -w -H=windowsgui -X main.version=v<версия>" -o ir-comp-control_v<версия>-win64.exe .
 ```
+
+`v<версия>` в `-X main.version` — та же версия, что в имени файла:
+она показывается в трее («Версия: ...»).
 
 ### Имя файла релиза
 
