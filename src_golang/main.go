@@ -38,13 +38,15 @@ var version = "dev"
 // golang.org/x/sys/windows. Через raw-вызовы осталось только то,
 // чего в пакете windows нет: курсор, mouse_event и MessageBeep.
 var (
-	user32           = windows.NewLazySystemDLL("user32.dll")
-	procSetCursorPos = user32.NewProc("SetCursorPos")
-	procGetCursorPos = user32.NewProc("GetCursorPos")
-	procMouseEvent   = user32.NewProc("mouse_event")
-	procMessageBeep  = user32.NewProc("MessageBeep")
-	procFindWindow   = user32.NewProc("FindWindowW")
-	procPostMessage  = user32.NewProc("PostMessageW")
+	user32            = windows.NewLazySystemDLL("user32.dll")
+	procSetCursorPos  = user32.NewProc("SetCursorPos")
+	procGetCursorPos  = user32.NewProc("GetCursorPos")
+	procMouseEvent    = user32.NewProc("mouse_event")
+	procMessageBeep   = user32.NewProc("MessageBeep")
+	procFindWindow    = user32.NewProc("FindWindowW")
+	procPostMessage   = user32.NewProc("PostMessageW")
+	procFindWindowEx  = user32.NewProc("FindWindowExW")
+	procSetWindowText = user32.NewProc("SetWindowTextW")
 )
 
 const (
@@ -63,14 +65,16 @@ const (
 	// Уникальный: FindWindow по generic-заголовку вроде «Внимание»
 	// мог бы зацепить чужое окно другой программы.
 	shutdownBoxTitle = "IR comp control: выключение"
+	// Заголовок окна отладки — тоже уникальный (ключ для FindWindow).
+	debugBoxTitle = "IR comp control: отладка"
 
 	debounceDuration = 150 * time.Millisecond
 
 	// Ускорение мыши: с каждым повторным сигналом в серии шаг растёт
 	// логарифмически; подробности — в moveMouseAccel и mouseState.advance.
-	baseMouseStep    = 10.0                  // базовый шаг, px — без ускорения
-	accelBaseTicks   = 3                     // первых N сигналов подряд идут без ускорения (включается с 4-го)
-	accelGain        = 60.0                  // множитель логарифмического ускорения, px
+	baseMouseStep    = 10.0                   // базовый шаг, px — без ускорения
+	accelBaseTicks   = 3                      // первых N сигналов подряд идут без ускорения (включается с 4-го)
+	accelGain        = 60.0                   // множитель логарифмического ускорения, px
 	accelSeriesPause = 160 * time.Millisecond // пауза длиннее — серия сигналов считается прерванной
 )
 
@@ -204,9 +208,11 @@ func onReady() {
 				if mDebug.Checked() {
 					mDebug.Uncheck()
 					debugMode.Store(false)
+					closeDebugBox()
 				} else {
 					mDebug.Check()
 					debugMode.Store(true)
+					openDebugBox(mDebug)
 				}
 			case <-mOpenConfig.ClickedCh:
 				_ = exec.Command("notepad.exe", "config.toml").Start()
@@ -312,7 +318,7 @@ func runSession() {
 			continue
 		}
 		if debugMode.Load() {
-			showDebugBox("ИК Код", "Получен: "+msg)
+			updateDebugBox("Последний код: " + msg)
 		}
 
 		// Берём актуальный конфиг на каждый код: кнопки
@@ -423,19 +429,77 @@ func startShutdown() {
 	}()
 }
 
-// closeShutdownWindow закрывает окно отсчёта, если оно открыто.
-// WM_CLOSE завершает MessageBox, и его горутина спокойно выходит,
-// увидев, что выключение уже не активно.
-func closeShutdownWindow() {
-	title, err := windows.UTF16PtrFromString(shutdownBoxTitle)
+// closeWindowByTitle закрывает окно с указанным заголовком, если оно
+// открыто: WM_CLOSE завершает MessageBox, и его горутина спокойно выходит.
+func closeWindowByTitle(title string) {
+	t, err := windows.UTF16PtrFromString(title)
+	if err != nil {
+		return
+	}
+	hwnd, _, _ := procFindWindow.Call(0, uintptr(unsafe.Pointer(t)))
+	if hwnd == 0 {
+		return // окно ещё не появилось или уже закрыто
+	}
+	_, _, _ = procPostMessage.Call(hwnd, wmClose, 0, 0)
+}
+
+// --- Окно отладки: одно окно, текст обновляется на лету ---
+
+// openDebugBox открывает окно отладки. Закрытие окна пользователем
+// выключает режим отладки; выключение из трея закрывает окно через
+// closeDebugBox — в обоих направлениях петли нет.
+func openDebugBox(menu *systray.MenuItem) {
+	t, err := windows.UTF16PtrFromString("Режим отладки: жду код с пульта. Нажмите любую кнопку.")
+	if err != nil {
+		return
+	}
+	c, err := windows.UTF16PtrFromString(debugBoxTitle)
+	if err != nil {
+		return
+	}
+	go func() {
+		// Без иконки: у текста остаётся единственный дочерний STATIC,
+		// его и обновляет updateDebugBox.
+		_, _ = windows.MessageBox(0, t, c, windows.MB_OK|windows.MB_TOPMOST)
+		// Окно закрыли пользователем — гасим режим и чекбокс.
+		// Если режим уже выключен из трея, это no-op.
+		if debugMode.Load() {
+			debugMode.Store(false)
+			menu.Uncheck()
+		}
+	}()
+}
+
+// closeDebugBox закрывает окно отладки, если оно открыто.
+func closeDebugBox() {
+	closeWindowByTitle(debugBoxTitle)
+}
+
+// updateDebugBox показывает последний код в уже открытом окне.
+// Если окна нет (его только что закрыли) — выходим молча:
+// закрытие окна само выключает режим (см. openDebugBox).
+func updateDebugBox(msg string) {
+	title, err := windows.UTF16PtrFromString(debugBoxTitle)
 	if err != nil {
 		return
 	}
 	hwnd, _, _ := procFindWindow.Call(0, uintptr(unsafe.Pointer(title)))
 	if hwnd == 0 {
-		return // окно ещё не появилось или уже закрыто
+		return
 	}
-	_, _, _ = procPostMessage.Call(hwnd, wmClose, 0, 0)
+	text, err := windows.UTF16PtrFromString(msg)
+	if err != nil {
+		return
+	}
+	cls, err := windows.UTF16PtrFromString("STATIC")
+	if err != nil {
+		return
+	}
+	static, _, _ := procFindWindowEx.Call(hwnd, 0, uintptr(unsafe.Pointer(cls)), 0)
+	if static == 0 {
+		return
+	}
+	_, _, _ = procSetWindowText.Call(static, uintptr(unsafe.Pointer(text)))
 }
 
 func cancelShutdown() {
@@ -452,7 +516,7 @@ func cancelShutdown() {
 	stateMu.Unlock()
 
 	// Закрываем окно отсчёта, если оно уже успело появиться.
-	closeShutdownWindow()
+	closeWindowByTitle(shutdownBoxTitle)
 	playSystemSound(beepSimple)
 }
 
@@ -504,7 +568,7 @@ func moveMouseAccel(dir string, dx, dy int32) {
 	// Больше accelBaseTicks нажатий подряд (т.е. начиная с 4-го) —
 	// ускорение: чем чаще приходят сигналы, тем выше скорость
 	if n > accelBaseTicks {
-		acceleration = accelGain * math.Log1p(float64(n - accelBaseTicks))
+		acceleration = accelGain * math.Log1p(float64(n-accelBaseTicks))
 	}
 
 	// Итоговый шаг
