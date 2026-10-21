@@ -69,8 +69,11 @@
 ## Сборка exe (Windows)
 
 ```sh
-go build -trimpath -ldflags "-s -w -H=windowsgui" -o ir-comp-control_v<версия>-win64.exe .
+go build -trimpath -ldflags "-s -w -H=windowsgui -X main.version=v<версия>" -o ir-comp-control_v<версия>-win64.exe .
 ```
+
+`v<версия>` в `-X main.version` — та же версия, что в имени файла:
+она показывается в трее («Версия: ...»).
 
 ### Имя файла релиза
 

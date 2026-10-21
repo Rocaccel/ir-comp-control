@@ -29,6 +29,10 @@ var iconBytes []byte
 //go:embed config.toml
 var defaultToml []byte
 
+// version подставляется при сборке через ldflags:
+// -ldflags "-X main.version=v0.2.0"; без флага остаётся "dev".
+var version = "dev"
+
 // --- Windows API ---
 // Большая часть WinAPI вызывается через типизированные обёртки
 // golang.org/x/sys/windows. Через raw-вызовы осталось только то,
@@ -174,6 +178,8 @@ func onReady() {
 	systray.SetTooltip("Управление пультом активно")
 
 	systray.AddMenuItem("Статус: Работает", "").Disable()
+	systray.AddMenuItem("Версия: "+version, "").Disable()
+	systray.AddSeparator()
 
 	mReload := systray.AddMenuItem("Перезагрузить конфиг", "Применить изменения")
 	mOpenConfig := systray.AddMenuItem("Открыть конфиг", "Редактировать кнопки")
