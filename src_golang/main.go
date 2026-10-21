@@ -39,9 +39,14 @@ var (
 	procGetCursorPos = user32.NewProc("GetCursorPos")
 	procMouseEvent   = user32.NewProc("mouse_event")
 	procMessageBeep  = user32.NewProc("MessageBeep")
+	procFindWindow   = user32.NewProc("FindWindowW")
+	procPostMessage  = user32.NewProc("PostMessageW")
 )
 
 const (
+	// WM_CLOSE — закрыть окно (для PostMessage).
+	wmClose = 0x0010
+
 	mouseLeftDown = 0x0002
 	mouseLeftUp   = 0x0004
 
@@ -50,6 +55,10 @@ const (
 
 	shutdownPrivilege = "SeShutdownPrivilege"
 	shutdownTimeout   = 10 * time.Second
+	// Заголовок окна отсчёта; он же — ключ поиска окна при отмене.
+	// Уникальный: FindWindow по generic-заголовку вроде «Внимание»
+	// мог бы зацепить чужое окно другой программы.
+	shutdownBoxTitle = "IR comp control: выключение"
 
 	debounceDuration = 150 * time.Millisecond
 
@@ -393,7 +402,7 @@ func startShutdown() {
 		if err != nil {
 			return
 		}
-		c, err := windows.UTF16PtrFromString("Внимание")
+		c, err := windows.UTF16PtrFromString(shutdownBoxTitle)
 		if err != nil {
 			return
 		}
@@ -406,6 +415,21 @@ func startShutdown() {
 			cancelShutdown()
 		}
 	}()
+}
+
+// closeShutdownWindow закрывает окно отсчёта, если оно открыто.
+// WM_CLOSE завершает MessageBox, и его горутина спокойно выходит,
+// увидев, что выключение уже не активно.
+func closeShutdownWindow() {
+	title, err := windows.UTF16PtrFromString(shutdownBoxTitle)
+	if err != nil {
+		return
+	}
+	hwnd, _, _ := procFindWindow.Call(0, uintptr(unsafe.Pointer(title)))
+	if hwnd == 0 {
+		return // окно ещё не появилось или уже закрыто
+	}
+	_, _, _ = procPostMessage.Call(hwnd, wmClose, 0, 0)
 }
 
 func cancelShutdown() {
@@ -421,6 +445,8 @@ func cancelShutdown() {
 	shutdownActive = false
 	stateMu.Unlock()
 
+	// Закрываем окно отсчёта, если оно уже успело появиться.
+	closeShutdownWindow()
 	playSystemSound(beepSimple)
 }
 
