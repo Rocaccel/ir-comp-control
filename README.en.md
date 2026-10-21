@@ -1,14 +1,25 @@
-# **IR comp control**
+<div align="center">
 
-**English** | [Русский](README.md)
+<img src="icon.png" width="112" alt="IR comp control">
 
-Lightweight Windows utility in Go that turns an IR remote into a computer controller: keyboard emulation, smart mouse with logarithmic acceleration, media commands and safe PC shutdown. Runs from the system tray with no windows.
+# IR comp control
+
+[![Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?style=flat-square)](https://github.com/Rocaccel/ir-comp-control/releases/latest)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
+[![Windows](https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![License](https://img.shields.io/badge/license-0BSD-blue?style=flat-square)](LICENSE)
+
+Lightweight Windows utility in Go that turns an IR remote into a computer controller: keyboard emulation, smart mouse with acceleration, media commands and safe PC shutdown. Runs from the system tray.
+
+[Русский](README.md) | **English**
+
+</div>
 
 ---
 
 ## Architecture
 
-```
+```text
 IR remote → IR receiver (D2, 5V, GND, 115200) → Arduino Uno (IRremote) → COM port → Go app → WinAPI
 ```
 
@@ -18,105 +29,108 @@ The sketch `for_arduino_controller/IR-controler-dual.ino` decodes NEC/RC5 and pr
 
 ## Features
 
-| Feature | Description |
-| :--- | :--- |
-| **Keyboard emulation** | A–Z, 0–9, F1–F12, navigation, media keys |
-| **Smart mouse** | Movement with logarithmic acceleration, reset after pause >160 ms |
-| **Safe shutdown** | 10-second timer cancellable by any remote button |
-| **System tray** | Status, reload config, debug, quit |
-| **Multi-protocol** | NEC and RC5 simultaneously |
-| **Zero-GUI, single instance** | Built with `-H=windowsgui`, mutex protection |
-
----
-
-## Tech stack
-
-**App:** Go 1.26+, systray, micmonay/keybd_event, tarm/serial, BurntSushi/toml, golang.org/x/sys/windows, WinAPI user32/kernel32.
-**Firmware:** Arduino Uno, IRremote 4.5.0.
+- **Keyboard emulation** — A–Z, 0–9, F1–F12, navigation, media keys.
+- **Smart mouse** — movement with acceleration.
+- **Safe shutdown** — 10-second timer, cancellable by any remote button or closing the window.
+- **Live config reload** — button edits apply without restarting the app; changing the port or baud rate prompts that a restart is needed.
+- **Debug mode** — one window with the button code, updated in real time.
+- **Multi-protocol** — NEC and RC5 at the same time, protocol detected automatically.
+- **System tray** — status, config reload and editing, quit.
 
 ---
 
 ## Requirements
 
-**Hardware:** Arduino Uno/compatible, IR receiver TSOP4838/VS1838B, NEC/RC5 IR remote, USB cable.
-**Software:** Windows 7/10/11, Arduino IDE + IRremote 4.5.0+, Go 1.26+ for building.
+- **Arduino** Uno or compatible board.
+- **IR receiver** TSOP4838 / VS1838B (any 3-pin NEC receiver).
+- **IR remote** NEC or RC5.
+- **Windows** 7 / 10 / 11; **Go 1.26+** — only for building from source.
+- **IRremote 4.x library** — for flashing the Arduino.
 
 ---
 
 ## Quick start
 
-**Receiver wiring:** OUT → D2, VCC → 5V, GND → GND.
+### 1. Wire the receiver
 
-**Flash:**
-1. Install IRremote library in Arduino IDE.
-2. Open `for_arduino_controller/IR-controler-dual.ino`, select board and port, upload.
-3. Open Serial Monitor at 115200, verify `NEC_XX`/`RC5_XX` lines. Close monitor before running the app.
+OUT → D2, VCC → 5V, GND → GND.
 
-**Run:**
-1. Run `ir-comp-control_v0.1.0-win64.exe`.
-2. First run creates `config.toml` next to exe — check `port`.
-3. Tray menu: Reload config, Open config, Debug mode.
+### 2. Flash the Arduino
+
+Install the IRremote library (via Arduino IDE or `arduino-cli lib install IRremote`), open `IR-controler-dual.ino`, select the board and port, upload.
+
+Verify in the Serial Monitor (115200): press buttons on the remote — `NEC_XX` / `RC5_XX` lines are printed.
+
+### 3. Run
+
+1. Download [![Latest Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?label=Latest%20Release)](https://github.com/Rocaccel/ir-comp-control/releases/latest) and put it in any folder.
+2. Run it — on first launch `config.toml` is created next to the exe.
+3. Set your COM port in `config.toml` and run the exe again.
+
+> [!IMPORTANT]
+> Before launching the app, close the Arduino IDE Serial Monitor and any other programs using the COM port. Otherwise the utility won't be able to work with it.
 
 ---
 
-## Configuration `config.toml`
+## Configuration
 
-```
+`config.toml` next to the exe:
+
+```toml
 port = "COM4"
 baud = 115200
 
 [buttons]
 "NEC_36" = "SYSTEM_SHUTDOWN"
-"NEC_B"  = "VK_SPACE"
-"NEC_12" = "VK_VOLUME_UP"
-"NEC_3D" = "MOUSE_UP"
+"NEC_10" = "WIN_D"
+"NEC_B"  = "ALT_TAB"
+"NEC_5A" = "MOUSE_UP"
 ```
 
-Available: `SYSTEM_SHUTDOWN`, `WIN_D`, `ALT_TAB`, `ALT_F4`, `MOUSE_UP/DOWN/LEFT/RIGHT`, `L_CLICK`, media `VK_VOLUME_*`, `VK_PLAY_PAUSE`/`NEXT`/`PREV`/`STOP`, navigation, `VK_SPACE`/`ENTER`/`ESC`/`BACKSPACE`/`TAB`/`CAPSLOCK`, digits, letters, `VK_F1`-`F12`, `VK_PRINT`, `VK_PAUSE`.
+Button codes come from the Serial Monitor; actions from the list: `SYSTEM_SHUTDOWN`, `WIN_D`, `ALT_TAB`, `ALT_F4`, `VK_F1`–`VK_F12`, `MOUSE_UP/DOWN/LEFT/RIGHT`, `L_CLICK`, `VK_SPACE`, `VK_ENTER`, `VK_ESC`, `VK_BACKSPACE`, `VK_TAB`, `VK_CAPSLOCK`, `VK_MUTE`, `VK_VOLUME_UP/DOWN`, `VK_MEDIA_NEXT_TRACK`, `VK_MEDIA_PREV_TRACK`, `VK_MEDIA_PLAY_PAUSE`, `VK_PRINTSCREEN`, `VK_PAUSE`, `VK_HOME/END/PRIOR/NEXT/UP/DOWN/LEFT/RIGHT`, digits, letters.
 
-> Config is embedded via `go:embed` and extracted only if `config.toml` does not exist next to exe. Existing file is never overwritten.
+> [!NOTE]
+> `config.toml` is embedded in the exe and extracted next to it only on first launch — an existing file is never overwritten. Button edits are picked up by the "Reload config" button without restarting; changing `port` or `baud` requires restarting the app.
 
 ---
 
-## How features work
+## How it works
 
-**Mouse acceleration:** base step 10 px. From the 4th consecutive press step grows as `10 + 60·ln(1 + (n-3))`. Reset after pause >160 ms or direction change.
+**Mouse acceleration.** Base step is 10 px. From the 4th consecutive press the step grows as `10 + 60 * ln(1 + (n - 3))`. The counter resets after a pause longer than 160 ms or a direction change.
 
-**Shutdown:** system sound, 10-second countdown window. Cancel by any remote button or closing the window.
+**Shutdown.** On `SYSTEM_SHUTDOWN` a sound plays and a window with a timer opens. Cancel with any remote button or by closing the window; in both cases the window closes and the PC stays on.
 
-**Debounce:** 150 ms for all actions except mouse movement.
+**Debounce.** 150 ms for all actions except mouse movement.
 
 ---
 
 ## Debug mode
 
-Enable «Debug mode» in tray. Button presses show message boxes with codes `NEC_XX`/`RC5_XX`. Copy code into `[buttons]`, click «Reload config».
+Enable the "Debug mode" checkbox in the tray menu. A "Waiting for remote code" window appears: each button press shows its code (`NEC_XX` / `RC5_XX`) in real time. Copy the code into `config.toml`, save, click "Reload config". Closing the window turns the mode off.
 
 ---
 
-## Building
+## Build
 
 ```cmd
 cd src_golang
 go mod tidy
-go build -trimpath -ldflags "-s -w -H=windowsgui" -o ..\ir-comp-control_v0.1.0-win64.exe .
+go build -trimpath -ldflags "-s -w -H=windowsgui -X main.version=v0.2.0" -o ..\ir-comp-control_v0.2.0-win64.exe .
 ```
 
-`rsrc_windows_amd64.syso` holds the exe icon. Regenerate with `rsrc -ico icon.ico -o rsrc_windows_amd64.syso` after changing `icon.ico`.
+Flags:
+
+- `-H=windowsgui` — no console window;
+- `-s -w` — smaller binary;
+- `-X main.version=vX.Y.Z` — version shown in the tray menu (substitute your own).
+
+`rsrc_windows_amd64.syso` holds the exe icon — regenerate it with `rsrc -ico icon.ico -o rsrc_windows_amd64.syso` after changing `icon.ico`.
 
 ---
 
 ## Troubleshooting
 
-* **COM port busy** — close Arduino IDE Serial Monitor.
-* **Buttons not responding** — check `NEC_`/`RC5_` prefix in `config.toml`, enable debug.
-* **No data in monitor** — check D2/5V/GND, batteries, aim remote at receiver.
-* **Mouse jerks** — normal at first presses, acceleration builds from 4th repeat.
-* **App won't start** — another instance is running, check tray.
-
----
-
-## License
-
-BSD Zero Clause License (0BSD). [LICENSE](LICENSE).  
-Firmware library: [IRremote](https://github.com/Arduino-IRremote/Arduino-IRremote).
+- **Button does nothing** — make sure the Serial Monitor prints `NEC_XX` / `RC5_XX` and check the codes in `config.toml`.
+- **Port won't open** — close the Arduino IDE Serial Monitor and other programs using the port; check `port` and `baud` in `config.toml`.
+- **Mouse jerks at first** — that's normal: acceleration builds up from the 4th press.
+- **Receiver is silent** — check the D2/5V/GND wiring, remote batteries, and aim the remote at the receiver.
