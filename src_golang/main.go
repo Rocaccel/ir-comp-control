@@ -52,7 +52,13 @@ const (
 	shutdownTimeout   = 10 * time.Second
 
 	debounceDuration = 150 * time.Millisecond
-	baseMouseStep    = 10.0 // Базовый шаг мыши (начальная скорость)
+
+	// Ускорение мыши: с каждым повторным сигналом в серии шаг растёт
+	// логарифмически; подробности — в moveMouseAccel и mouseState.advance.
+	baseMouseStep    = 10.0                  // базовый шаг, px — без ускорения
+	accelBaseTicks   = 3                     // первых N сигналов подряд идут без ускорения (включается с 4-го)
+	accelGain        = 60.0                  // множитель логарифмического ускорения, px
+	accelSeriesPause = 160 * time.Millisecond // пауза длиннее — серия сигналов считается прерванной
 )
 
 type cursorPoint struct{ X, Y int32 }
@@ -446,8 +452,8 @@ func (m *mouseState) advance(dir string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	now := time.Now()
-	// Сброс при долгой паузе (160мс) или смене направления
-	if now.Sub(m.lastTime) > 160*time.Millisecond || dir != m.lastDir {
+	// Сброс серии при паузе дольше accelSeriesPause или смене направления
+	if now.Sub(m.lastTime) > accelSeriesPause || dir != m.lastDir {
 		m.count = 1
 		m.lastDir = dir
 	} else {
@@ -463,10 +469,10 @@ func moveMouseAccel(dir string, dx, dy int32) {
 	n := mouseAccel.advance(dir)
 
 	var acceleration float64
-	// Больше трёх нажатий подряд (т.е. начиная с 4-го) — ускорение:
-	// чем чаще приходят сигналы, тем выше скорость
-	if n > 3 {
-		acceleration = 60.0 * math.Log1p(float64(n-3))
+	// Больше accelBaseTicks нажатий подряд (т.е. начиная с 4-го) —
+	// ускорение: чем чаще приходят сигналы, тем выше скорость
+	if n > accelBaseTicks {
+		acceleration = accelGain * math.Log1p(float64(n - accelBaseTicks))
 	}
 
 	// Итоговый шаг
