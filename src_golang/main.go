@@ -75,6 +75,10 @@ var (
 
 	debugMode  atomic.Bool
 	reloadChan = make(chan bool, 1)
+	// currentConfig — актуальный конфиг, подменяется на лету.
+	currentConfig atomic.Pointer[appConfig]
+	// kick будит сеанс после его падения (кликом «Перезагрузить конфиг»).
+	kick = make(chan struct{}, 1)
 )
 
 // Соответствие имён кнопок из config.toml кодам клавиш.
@@ -191,55 +195,86 @@ func onReady() {
 		}
 	}()
 
-	go worker()
+	// Начальная загрузка конфига; при ошибке configWatcher
+	// подхватит после правки файла.
+	if cfg, err := loadConfig(); err != nil {
+		showDebugBox("Ошибка конфига", err.Error())
+	} else {
+		currentConfig.Store(cfg)
+	}
+	go configWatcher()
+	go remoteLoop()
 }
 
-func worker() {
-	for {
-		stop := make(chan struct{})
-		done := make(chan struct{})
-		go runRemoteControl(stop, done)
-
-		<-reloadChan
-		close(stop)
-		<-done // ждём завершения сессии вместо Sleep
-	}
+// appConfig — содержимое config.toml.
+type appConfig struct {
+	Port    string            `toml:"port"`
+	Baud    int               `toml:"baud"`
+	Buttons map[string]string `toml:"buttons"`
 }
 
-func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
-	defer close(done)
-
-	var config struct {
-		Port    string            `toml:"port"`
-		Baud    int               `toml:"baud"`
-		Buttons map[string]string `toml:"buttons"`
-	}
-
+// loadConfig читает config.toml рядом с exe.
+func loadConfig() (*appConfig, error) {
+	var config appConfig
 	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			showDebugBox("Ошибка", "Файл config.toml не найден")
-		} else {
-			showDebugBox("Ошибка синтаксиса TOML", err.Error())
+			return nil, errors.New("Файл config.toml не найден")
 		}
-		return
+		return nil, fmt.Errorf("Ошибка синтаксиса TOML: %w", err)
 	}
-	sPort, err := serial.OpenPort(&serial.Config{Name: config.Port, Baud: config.Baud})
-	if err != nil {
-		showDebugBox("Ошибка порта", "Не удалось открыть "+config.Port)
-		return
-	}
-	// Порт закрывается ровно один раз: либо по остановке,
-	// либо при выходе из функции.
-	var closeOnce sync.Once
-	closePort := func() {
-		closeOnce.Do(func() { _ = sPort.Close() })
-	}
-	defer closePort()
+	return &config, nil
+}
 
-	go func() {
-		<-stop
-		closePort()
-	}()
+// configWatcher перечитывает конфиг по клику «Перезагрузить конфиг».
+// Кнопки применяются на лету; порт/скорость живут до перезапуска
+// приложения — сеанс открывает порт ровно один раз.
+func configWatcher() {
+	for range reloadChan {
+		cfg, err := loadConfig()
+		if err != nil {
+			showDebugBox("Ошибка конфига", err.Error())
+		} else {
+			if prev := currentConfig.Load(); prev != nil &&
+				(prev.Port != cfg.Port || prev.Baud != cfg.Baud) {
+				showDebugBox("Смена порта",
+					"Для применения нового COM-порта перезапустите приложение")
+			}
+			currentConfig.Store(cfg)
+		}
+		// Будим сеанс, если он упал и ждёт повтора;
+		// живому сеансу этот сигнал не мешает.
+		select {
+		case kick <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// remoteLoop: сеанс живёт, пока порт читается; после падения ждёт
+// клика «Перезагрузить конфиг» и переподключается.
+func remoteLoop() {
+	for {
+		runSession()
+		<-kick
+	}
+}
+
+// runSession — один сеанс работы: открыть порт, читать коды.
+func runSession() {
+	cfg := currentConfig.Load()
+	for cfg == nil {
+		// Конфиг ещё ни разу не загрузился (файл был сломан при
+		// старте) — ждём, пока configWatcher подхватит правку.
+		time.Sleep(200 * time.Millisecond)
+		cfg = currentConfig.Load()
+	}
+
+	sPort, err := serial.OpenPort(&serial.Config{Name: cfg.Port, Baud: cfg.Baud})
+	if err != nil {
+		showDebugBox("Ошибка порта", "Не удалось открыть "+cfg.Port)
+		return
+	}
+	defer sPort.Close()
 
 	kb, err := keybd_event.NewKeyBonding()
 	if err != nil {
@@ -259,7 +294,10 @@ func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
 			showDebugBox("ИК Код", "Получен: "+msg)
 		}
 
-		action, ok := config.Buttons[msg]
+		// Берём актуальный конфиг на каждый код: кнопки
+		// перезагружаются на лету, порт при этом не перезапускается.
+		cur := currentConfig.Load()
+		action, ok := cur.Buttons[msg]
 		if !ok {
 			continue
 		}
@@ -275,12 +313,7 @@ func runRemoteControl(stop <-chan struct{}, done chan<- struct{}) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		select {
-		case <-stop:
-			// Штатная остановка по перезагрузке конфига — не шуметь.
-		default:
-			showDebugBox("Ошибка чтения порта", err.Error())
-		}
+		showDebugBox("Ошибка чтения порта", err.Error())
 	}
 }
 
