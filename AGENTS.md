@@ -22,12 +22,12 @@
 
 ### Рабочие папки (на этой машине)
 
-- `C:\Users\ser\Desktop\GitHub\IR_comp_control` — основная копия, ветка `main`
-- `C:\Users\ser\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
+- `%USERPROFILE%\Desktop\GitHub\IR_comp_control` — основная копия, ветка `main`
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
   worktree ветки `v0.1.0` (скетчи, сборка exe)
-- `C:\Users\ser\Desktop\GOLANG_Portable\workspace\IR-control-v0.2.0` —
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.2.0` —
   worktree ветки `v0.2.0` (рефакторинг main.go)
-- `C:\Users\ser\Desktop\GOLANG_Portable\workspace\IR-control-v0.0.5` —
+- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.0.5` —
   архив старой версии, не трогать
 
 ## Репозиторий
