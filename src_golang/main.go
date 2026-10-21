@@ -63,12 +63,11 @@ var singleInstanceMutex windows.Handle
 
 // --- Общее состояние (доступ из нескольких горутин) ---
 var (
-	stateMu         sync.Mutex
-	shutdownActive  bool
-	shutdownTimer   *time.Timer
-	clickCount      int
-	lastMouseAction string
-	lastSignalTime  time.Time
+	stateMu        sync.Mutex
+	shutdownActive bool
+	shutdownTimer  *time.Timer
+
+	mouseAccel mouseState
 
 	debugMode  atomic.Bool
 	reloadChan = make(chan bool, 1)
@@ -396,25 +395,40 @@ func showDebugBox(title, text string) {
 	}()
 }
 
-func moveMouseAccel(dir string, dx, dy int32) {
-	now := time.Now()
+// mouseState накапливает серию сигналов пульта в одном направлении
+// и отдаёт счётчик для расчёта ускорения.
+type mouseState struct {
+	mu       sync.Mutex
+	count    int
+	lastDir  string
+	lastTime time.Time
+}
 
-	stateMu.Lock()
-	// 1. Сброс при долгой паузе (160мс) или смене направления
-	if now.Sub(lastSignalTime) > 160*time.Millisecond || dir != lastMouseAction {
-		clickCount = 1
-		lastMouseAction = dir
+// advance — единая точка обновления состояния мыши: один lock на всё.
+func (m *mouseState) advance(dir string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now()
+	// Сброс при долгой паузе (160мс) или смене направления
+	if now.Sub(m.lastTime) > 160*time.Millisecond || dir != m.lastDir {
+		m.count = 1
+		m.lastDir = dir
 	} else {
-		clickCount++
+		m.count++
 	}
-	n := clickCount
-	stateMu.Unlock()
+	m.lastTime = now
+	return m.count
+}
+
+func moveMouseAccel(dir string, dx, dy int32) {
+	// n — количество сигналов подряд в одном направлении
+	// (время последнего сигнала фиксируется здесь же, внутри advance)
+	n := mouseAccel.advance(dir)
 
 	var acceleration float64
-	// 3. Условие: больше трех нажатий (т.е. начиная с 4-го)
+	// Больше трёх нажатий подряд (т.е. начиная с 4-го) — ускорение:
+	// чем чаще приходят сигналы, тем выше скорость
 	if n > 3 {
-		// Рассчитываем ускорение на основе количества накопленных сигналов
-		// Чем чаще приходят сигналы, тем выше скорость
 		acceleration = 60.0 * math.Log1p(float64(n-3))
 	}
 
@@ -430,11 +444,6 @@ func moveMouseAccel(dir string, dx, dy int32) {
 		pt.X+dx*step,
 		pt.Y+dy*step,
 	)
-
-	// Обновляем время последнего сигнала в самом конце
-	stateMu.Lock()
-	lastSignalTime = now
-	stateMu.Unlock()
 }
 
 func checkSingleInstance() {
