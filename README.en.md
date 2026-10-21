@@ -84,7 +84,7 @@ Available: `SYSTEM_SHUTDOWN`, `WIN_D`, `ALT_TAB`, `ALT_F4`, `MOUSE_UP/DOWN/LEFT/
 
 **Shutdown:** system sound, 10-second countdown window. Cancel by any remote button or closing the window.
 
-**Debounce:** 150 ms for keyboard/system commands. Mouse movement has no debounce.
+**Debounce:** 150 ms for all actions except mouse movement.
 
 ---
 
