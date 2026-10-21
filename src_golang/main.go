@@ -62,6 +62,10 @@ type cursorPoint struct{ X, Y int32 }
 var singleInstanceMutex windows.Handle
 
 // --- Общее состояние (доступ из нескольких горутин) ---
+// stateMu — составное состояние выключения (флаг + таймер,
+// операции «проверить и остановить»).
+// debugMode — простой флаг с частым чтением в цикле приёма,
+// поэтому atomic без лока.
 var (
 	stateMu        sync.Mutex
 	shutdownActive bool
