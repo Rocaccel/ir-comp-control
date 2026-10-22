@@ -55,6 +55,8 @@ The sketch `for_arduino_controller/IR-controler-dual.ino` decodes NEC/RC5 and pr
 
 OUT → D2, VCC → 5V, GND → GND.
 
+![Wiring the IR receiver to Arduino: DATA → D2, VCC → 5V, GND → GND](img/ir-receiver-connection.png)
+
 ### 2. Flash the Arduino
 
 Install the IRremote library (via Arduino IDE or `arduino-cli lib install IRremote`), open `IR-controler-dual.ino`, select the board and port, upload.

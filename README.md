@@ -55,11 +55,13 @@
 
 OUT → D2, VCC → 5V, GND → GND.
 
+![Схема подключения ИК-приёмника к Arduino: DATA → D2, VCC → 5V, GND → GND](img/ir-receiver-connection.png)
+
 ### 2. Прошивка Arduino
 
 Установите библиотеку IRremote (через Arduino IDE или `arduino-cli lib install IRremote`), откройте `IR-controler-dual.ino`, выберите плату и порт, загрузите.
 
-Проверьте в Мониторе порта (115200): поводите пультом — печатаются `NEC_XX` / `RC5_XX`.
+Проверьте в Мониторе порта (115200): нажимайте кнопки на пульте — печатаются `NEC_XX` / `RC5_XX`.
 
 ### 3. Запуск
 
