@@ -63,9 +63,19 @@ OUT → D2, VCC → 5V, GND → GND.
 
 ### 3. Запуск
 
-1. Скачайте [![Latest Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?label=Latest%20Release)](https://github.com/Rocaccel/ir-comp-control/releases/latest) и положите в любую папку.
-2. Запустите — при первом запуске рядом создастся `config.toml`.
-3. Пропишите в `config.toml` номер своего COM-порта и запустите exe заново.
+**Через Scoop** (с автообновлениями):
+
+```sh
+scoop bucket add rocaccel https://github.com/Rocaccel/scoop-bucket
+scoop install ir-comp-control
+```
+
+Обновление: `scoop update ir-comp-control`.
+
+**Portable:** скачайте [![Latest Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?label=Latest%20Release)](https://github.com/Rocaccel/ir-comp-control/releases/latest) и положите в любую папку.
+
+1. Запустите — при первом запуске рядом создастся `config.toml`.
+2. Пропишите в `config.toml` номер своего COM-порта и запустите заново.
 
 > [!IMPORTANT]
 > Перед запуском приложения закройте Монитор порта Arduino IDE и любые программы, занимающие COM-порт. Иначе утилита не сможет работать с ним.

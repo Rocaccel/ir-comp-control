@@ -5,6 +5,13 @@
 Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версии соответствуют тегам и релизам GitHub.
 
+## [Unreleased]
+
+### Добавлено
+- Установка и автообновления через Scoop: личный бакет
+  [`Rocaccel/scoop-bucket`](https://github.com/Rocaccel/scoop-bucket),
+  манифест обновляется GitHub Action после каждого релиза
+
 ## [0.2.0] — 2026-10-22
 
 ### Добавлено

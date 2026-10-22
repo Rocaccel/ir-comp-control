@@ -23,6 +23,9 @@
 ### Рабочие папки (на этой машине)
 
 - `%USERPROFILE%\Desktop\GitHub\IR_comp_control` — основная копия, ветка `main`
+- `%USERPROFILE%\Desktop\GitHub\scoop-bucket` — репозиторий-бакет Scoop
+  (`Rocaccel/scoop-bucket`): манифесты в `bucket/`, GitHub Action
+  `.github/workflows/autoupdate.yml` автообновляет их после релизов
 - `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
   worktree ветки `v0.1.0` (скетчи, сборка exe)
 - `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.2.0` —
@@ -103,6 +106,15 @@ ir-comp-control_v<версия>-win64.exe
 4. К релизу прикладывать **только exe** (корневой `config.toml` — нет).
 5. Исторические релизы не удалять (v0.0.5 опубликован задним числом
    для истории).
+6. После публикации релиза манифест в Scoop-бакете обновляет
+   GitHub Action (расписание — каждые 2 часа, есть ручной запуск
+   workflow_dispatch). Проверить/обновить вручную из папки бакета:
+
+   ```sh
+   # из %USERPROFILE%\Desktop\GitHub\scoop-bucket
+   scoop checkver ir-comp-control -u
+   git add bucket && git commit -m "chore: обновить манифест" && git push
+   ```
 
 ## GitHub
 

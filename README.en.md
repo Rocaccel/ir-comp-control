@@ -63,9 +63,19 @@ Verify in the Serial Monitor (115200): press buttons on the remote — `NEC_XX` 
 
 ### 3. Run
 
-1. Download [![Latest Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?label=Latest%20Release)](https://github.com/Rocaccel/ir-comp-control/releases/latest) and put it in any folder.
-2. Run it — on first launch `config.toml` is created next to the exe.
-3. Set your COM port in `config.toml` and run the exe again.
+**Via Scoop** (with auto-updates):
+
+```sh
+scoop bucket add rocaccel https://github.com/Rocaccel/scoop-bucket
+scoop install ir-comp-control
+```
+
+Update: `scoop update ir-comp-control`.
+
+**Portable:** download [![Latest Release](https://img.shields.io/github/v/release/Rocaccel/ir-comp-control?label=Latest%20Release)](https://github.com/Rocaccel/ir-comp-control/releases/latest) and put it in any folder.
+
+1. Run it — on first launch `config.toml` is created next to the exe.
+2. Set your COM port in `config.toml` and run it again.
 
 > [!IMPORTANT]
 > Before launching the app, close the Arduino IDE Serial Monitor and any other programs using the COM port. Otherwise the utility won't be able to work with it.
