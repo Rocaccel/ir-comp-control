@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,6 +33,17 @@ var defaultToml []byte
 // version подставляется при сборке через ldflags:
 // -ldflags "-X main.version=v0.2.0"; без флага остаётся "dev".
 var version = "dev"
+
+// configPath — путь к config.toml рядом с exe. Рабочая директория
+// запуска может быть любой (шим Scoop, ярлык, терминал), поэтому
+// конфиг привязан к каталогу самого exe.
+var configPath = func() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "config.toml"
+	}
+	return filepath.Join(filepath.Dir(exe), "config.toml")
+}()
 
 // --- Windows API ---
 // Большая часть WinAPI вызывается через типизированные обёртки
@@ -169,8 +181,8 @@ func main() {
 	checkSingleInstance()
 
 	// Самораспаковка конфига
-	if _, err := os.Stat("config.toml"); errors.Is(err, os.ErrNotExist) {
-		_ = os.WriteFile("config.toml", defaultToml, 0644)
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
+		_ = os.WriteFile(configPath, defaultToml, 0644)
 	}
 
 	systray.Run(onReady, onExit)
@@ -215,7 +227,7 @@ func onReady() {
 					openDebugBox(mDebug)
 				}
 			case <-mOpenConfig.ClickedCh:
-				_ = exec.Command("notepad.exe", "config.toml").Start()
+				_ = exec.Command("notepad.exe", configPath).Start()
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 			}
@@ -243,7 +255,7 @@ type appConfig struct {
 // loadConfig читает config.toml рядом с exe.
 func loadConfig() (*appConfig, error) {
 	var config appConfig
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
+	if _, err := toml.DecodeFile(configPath, &config); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, errors.New("Файл config.toml не найден")
 		}
