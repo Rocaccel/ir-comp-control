@@ -55,7 +55,11 @@ The sketch `for_arduino_controller/IR-controler-dual.ino` decodes NEC/RC5 and pr
 
 OUT → D2, VCC → 5V, GND → GND.
 
+<div align="center">
+
 ![Wiring the IR receiver to Arduino: DATA → D2, VCC → 5V, GND → GND](img/ir-receiver-connection.png)
+
+</div>
 
 ### 2. Flash the Arduino
 

@@ -55,7 +55,10 @@
 
 OUT → D2, VCC → 5V, GND → GND.
 
+<div align="center">
+
 ![Схема подключения ИК-приёмника к Arduino: DATA → D2, VCC → 5V, GND → GND](img/ir-receiver-connection.png)
+</div>
 
 ### 2. Прошивка Arduino
 
