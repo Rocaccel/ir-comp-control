@@ -17,7 +17,9 @@
 - Фичи — в отдельных ветках; при большой работе — через worktree.
 - Мерж в `main` — с merge-коммитом:
   `git merge --no-ff <ветка> -m "Merge branch 'v0.1.0': краткое содержание"`
-- Ветки после мержа не удалять (история: `v0.0.5`, `v0.1.0` остаются).
+- Ветки релизов после мержа удалять: локально `git branch -d`, на origin —
+  `git push origin --delete refs/heads/<ветка>` (явный refspec обязателен:
+  имена веток совпадают с тегами, иначе «matches more than one»).
 - Перед коммитом/мержем — `git status`; при сомнениях — `git fetch` + `git status`.
 
 ### Рабочие папки (на этой машине)
@@ -26,12 +28,8 @@
 - `%USERPROFILE%\Desktop\GitHub\scoop-bucket` — репозиторий-бакет Scoop
   (`Rocaccel/scoop-bucket`): манифесты в `bucket/`, GitHub Action
   `.github/workflows/autoupdate.yml` автообновляет их после релизов
-- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.1.0` —
-  worktree ветки `v0.1.0` (скетчи, сборка exe)
-- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.2.0` —
-  worktree ветки `v0.2.0` (рефакторинг main.go)
-- `%USERPROFILE%\Desktop\GOLANG_Portable\workspace\IR-control-v0.0.5` —
-  архив старой версии, не трогать
+- Worktree'ов нет — чистка 2026-10-23 (ветки v0.1.0/v0.2.0 и старые
+  папки удалены); релизные exe собираются из основной копии
 
 ## Репозиторий
 
