@@ -13,6 +13,8 @@ Lightweight Windows utility in Go that turns an IR remote into a computer contro
 
 [Русский](README.md) | **English**
 
+[Architecture](#architecture) • [Features](#features) • [Requirements](#requirements) • [Quick start](#quick-start) • [Configuration](#configuration) • [How it works](#how-it-works) • [Debug mode](#debug-mode) • [Build](#build) • [Troubleshooting](#troubleshooting)
+
 </div>
 
 ---
